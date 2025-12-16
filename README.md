@@ -25,3 +25,4 @@ streamlit run app.py
 - Укажите ветку `main` и файл `app.py`.
 - API-ключ хранить в Secrets (`OWM_API_KEY`), не коммитить.
 
+

@@ -4,4 +4,6 @@ numpy
 requests
 aiohttp
 plotly
+python-dotenv
+nest-asyncio
 

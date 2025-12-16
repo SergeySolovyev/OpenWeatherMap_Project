@@ -1,2 +1,0 @@
-Educational project for university course: Streamlit web application analyzing historical temperature data (10 years, 15 cities) and comparing it with current weather from OpenWeatherMap API. The project includes time series analysis, anomaly detection, and temperature monitoring. Requesting student access to complete mandatory homework assignment.
-

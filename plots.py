@@ -35,3 +35,4 @@ def seasonal_boxplot(df: pd.DataFrame, city: str):
     )
     return fig
 
+

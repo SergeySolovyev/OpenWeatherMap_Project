@@ -33,6 +33,11 @@ def load_data(path: str) -> pd.DataFrame:
 
 def add_rolling_stats(df: pd.DataFrame, window_days: int = 30) -> pd.DataFrame:
     df = df.sort_values(["city", "timestamp"]).copy()
+    # Сохраняем исходный индекс для последующего выравнивания
+    original_index = df.index.copy()
+    df = df.reset_index(drop=True)
+    
+    # Вычисляем rolling статистики
     rolling_mean = (
         df.groupby("city")
         .rolling(window=window_days, on="timestamp")["temperature"]
@@ -45,8 +50,13 @@ def add_rolling_stats(df: pd.DataFrame, window_days: int = 30) -> pd.DataFrame:
         .std()
         .reset_index(level=0, drop=True)
     )
-    df["rolling_mean"] = rolling_mean
-    df["rolling_std"] = rolling_std
+    
+    # Присваиваем значения через .values для избежания проблем с индексами
+    # Индексы должны совпадать, так как мы сбросили индекс перед rolling
+    df["rolling_mean"] = rolling_mean.values
+    df["rolling_std"] = rolling_std.values
+    
+    # Восстанавливаем исходный индекс если нужно (но обычно не требуется)
     return df
 
 
@@ -78,6 +88,13 @@ def mark_anomalies(
 
 
 def prepare_features(df: pd.DataFrame, window_days: int = 30) -> pd.DataFrame:
+    """Подготавливает признаки для анализа температурных данных.
+    
+    ВЫВОД из экспериментов: используется последовательная обработка, а не параллельная.
+    ThreadPoolExecutor не эффективен для CPU-bound задач (rolling, вычисления) из-за GIL.
+    Накладные расходы на создание потоков превышают выгоду от параллелизма.
+    См. experiments.ipynb для детального анализа параллелизации.
+    """
     with_rolling = add_rolling_stats(df, window_days=window_days)
     with_season = add_season_stats(with_rolling)
     return mark_anomalies(with_season)
@@ -94,4 +111,5 @@ def is_temp_normal(temp: float, mean: float, std: float, z_threshold: float = 2.
     if np.isnan(mean) or np.isnan(std) or std == 0:
         return True
     return (mean - z_threshold * std) <= temp <= (mean + z_threshold * std)
+
 
