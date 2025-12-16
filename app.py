@@ -19,7 +19,7 @@ from analysis import (
     is_temp_normal,
     load_data,
 )
-from plots import line_with_anomalies, seasonal_boxplot
+from plots import line_with_anomalies, seasonal_boxplot, rolling_mean_std_plot, rolling_std_plot
 from weather_api import fetch_current_weather, fetch_current_weather_async, WeatherError
 
 # Загружаем .env файл если он есть
@@ -104,6 +104,14 @@ def main():
     st.subheader("Временной ряд с аномалиями")
     st.plotly_chart(line_with_anomalies(df_features, city), use_container_width=True)
 
+    st.subheader("Скользящее среднее и стандартное отклонение")
+    st.plotly_chart(rolling_mean_std_plot(df_features, city), use_container_width=True)
+    st.caption("График показывает температуру, скользящее среднее (окно 30 дней) и полосу ±2σ для выявления аномалий.")
+
+    st.subheader("Скользящее стандартное отклонение")
+    st.plotly_chart(rolling_std_plot(df_features, city), use_container_width=True)
+    st.caption("График показывает изменение волатильности температуры (скользящее σ за 30 дней).")
+
     st.subheader("Сезонное распределение")
     st.plotly_chart(seasonal_boxplot(df_features, city), use_container_width=True)
 
@@ -164,6 +172,31 @@ def main():
         f"Тренд: {temp_change:+.2f} °C за весь период "
         f"({years_span:.1f} лет) = {temp_change/years_span:+.3f} °C/год"
     )
+    
+    # Таблица сезонной статистики (mean/std по сезонам)
+    st.subheader("Сезонная статистика")
+    city_data = df_features[df_features["city"] == city]
+    season_stats = (
+        city_data.groupby("season")
+        .agg({
+            "season_mean": "first",
+            "season_std": "first",
+            "temperature": ["count", "min", "max"]
+        })
+        .round(2)
+    )
+    # Упрощаем MultiIndex колонки
+    season_stats.columns = ["_".join(col).strip() if isinstance(col, tuple) else col for col in season_stats.columns]
+    # Переименовываем колонки для отображения
+    season_stats = season_stats.rename(columns={
+        "season_mean_first": "Среднее (°C)",
+        "season_std_first": "Ст. отклонение (°C)",
+        "temperature_count": "Количество",
+        "temperature_min": "Мин (°C)",
+        "temperature_max": "Макс (°C)"
+    })
+    season_stats = season_stats.reindex(["winter", "spring", "summer", "autumn"])
+    st.dataframe(season_stats, use_container_width=True)
     
     st.subheader("Детальная статистика по сезону")
     st.dataframe(
