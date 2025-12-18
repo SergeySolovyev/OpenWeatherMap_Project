@@ -34,26 +34,19 @@ def load_data(path: str) -> pd.DataFrame:
 
 
 def add_rolling_stats(df: pd.DataFrame, window_days: int = 30) -> pd.DataFrame:
-    # Создаем полную копию и сбрасываем индекс для избежания проблем
+    # Создаем полную копию и полностью сбрасываем индекс
     df = df.copy()
     df = df.sort_values(["city", "timestamp"]).reset_index(drop=True)
     
-    # Убеждаемся, что индексы уникальны
-    if not df.index.is_unique:
-        df = df.reset_index(drop=True)
-    
-    # Инициализируем колонки с NaN значениями
-    df["rolling_mean"] = np.nan
-    df["rolling_std"] = np.nan
+    # Создаем списки для результатов
+    rolling_mean_list = []
+    rolling_std_list = []
     
     # Вычисляем rolling статистики для каждого города отдельно
     # Это гарантирует правильное выравнивание индексов
     for city in df["city"].unique():
         city_mask = df["city"] == city
-        city_indices = df[city_mask].index
-        
-        # Создаем отдельный DataFrame для города
-        city_df = df.loc[city_indices].copy().reset_index(drop=True)
+        city_df = df[city_mask].copy().reset_index(drop=True)
         
         # Вычисляем rolling статистики для города
         city_rolling_mean = (
@@ -67,11 +60,17 @@ def add_rolling_stats(df: pd.DataFrame, window_days: int = 30) -> pd.DataFrame:
             .values
         )
         
-        # Присваиваем значения напрямую по индексам
-        df.loc[city_indices, "rolling_mean"] = city_rolling_mean
-        df.loc[city_indices, "rolling_std"] = city_rolling_std
+        # Добавляем в списки
+        rolling_mean_list.extend(city_rolling_mean)
+        rolling_std_list.extend(city_rolling_std)
     
-    return df
+    # Создаем новый DataFrame с результатами, избегая проблем с индексами
+    result_df = df.copy()
+    result_df = result_df.reset_index(drop=True)
+    result_df["rolling_mean"] = np.array(rolling_mean_list, dtype=float)
+    result_df["rolling_std"] = np.array(rolling_std_list, dtype=float)
+    
+    return result_df
 
 
 def add_season_stats(df: pd.DataFrame) -> pd.DataFrame:
