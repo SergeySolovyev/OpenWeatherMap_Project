@@ -39,6 +39,9 @@ def load_sample_data() -> pd.DataFrame:
 
 
 def main():
+    # Информация об авторе в боковой панели
+    st.sidebar.markdown("### Автор: Соловьев Сергей")
+    
     st.title("Температурные ряды и текущая погода (OpenWeatherMap)")
     st.write("Загрузите CSV или используйте демонстрационные данные.")
 
