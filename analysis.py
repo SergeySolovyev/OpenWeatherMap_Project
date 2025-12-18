@@ -25,6 +25,8 @@ def season_from_timestamp(ts: pd.Timestamp) -> str:
 
 def load_data(path: str) -> pd.DataFrame:
     df = pd.read_csv(path)
+    # Сбрасываем индекс для избежания проблем с дублирующимися индексами
+    df = df.reset_index(drop=True)
     df["timestamp"] = pd.to_datetime(df["timestamp"])
     if "season" not in df.columns:
         df["season"] = df["timestamp"].apply(season_from_timestamp)
@@ -32,9 +34,13 @@ def load_data(path: str) -> pd.DataFrame:
 
 
 def add_rolling_stats(df: pd.DataFrame, window_days: int = 30) -> pd.DataFrame:
-    df = df.sort_values(["city", "timestamp"]).copy()
-    # Сбрасываем индекс для избежания проблем с дублирующимися индексами
-    df = df.reset_index(drop=True)
+    # Создаем полную копию и сбрасываем индекс для избежания проблем
+    df = df.copy()
+    df = df.sort_values(["city", "timestamp"]).reset_index(drop=True)
+    
+    # Убеждаемся, что индексы уникальны
+    if not df.index.is_unique:
+        df = df.reset_index(drop=True)
     
     # Вычисляем rolling статистики для каждого города отдельно
     # Это гарантирует правильное выравнивание индексов
@@ -43,26 +49,26 @@ def add_rolling_stats(df: pd.DataFrame, window_days: int = 30) -> pd.DataFrame:
     
     for city in df["city"].unique():
         city_mask = df["city"] == city
-        city_df = df[city_mask].copy()
+        city_df = df[city_mask].copy().reset_index(drop=True)
         
         # Вычисляем rolling статистики для города
         city_rolling_mean = (
             city_df.rolling(window=window_days, on="timestamp")["temperature"]
             .mean()
-            .values
         )
         city_rolling_std = (
             city_df.rolling(window=window_days, on="timestamp")["temperature"]
             .std()
-            .values
         )
         
-        rolling_mean_list.extend(city_rolling_mean)
-        rolling_std_list.extend(city_rolling_std)
+        # Преобразуем в numpy массивы для гарантированного выравнивания
+        rolling_mean_list.extend(city_rolling_mean.values)
+        rolling_std_list.extend(city_rolling_std.values)
     
     # Присваиваем значения напрямую через массивы numpy
-    df["rolling_mean"] = rolling_mean_list
-    df["rolling_std"] = rolling_std_list
+    # Это гарантирует правильное выравнивание независимо от индексов
+    df["rolling_mean"] = np.array(rolling_mean_list)
+    df["rolling_std"] = np.array(rolling_std_list)
     
     return df
 
