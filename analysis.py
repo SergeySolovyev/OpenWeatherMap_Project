@@ -23,13 +23,29 @@ def season_from_timestamp(ts: pd.Timestamp) -> str:
     return MONTH_TO_SEASON[ts.month]
 
 
-def load_data(path: str) -> pd.DataFrame:
-    df = pd.read_csv(path)
+def load_data(path) -> pd.DataFrame:
+    # Поддерживаем как строки (путь к файлу), так и file-like объекты (file_uploader)
+    if isinstance(path, str):
+        df = pd.read_csv(path)
+    else:
+        # Для file_uploader из Streamlit
+        df = pd.read_csv(path)
+    
     # Сбрасываем индекс для избежания проблем с дублирующимися индексами
     df = df.reset_index(drop=True)
+    
+    # Убеждаемся, что индексы уникальны
+    if not df.index.is_unique:
+        df = df.reset_index(drop=True)
+    
     df["timestamp"] = pd.to_datetime(df["timestamp"])
     if "season" not in df.columns:
         df["season"] = df["timestamp"].apply(season_from_timestamp)
+    
+    # Финальная проверка уникальности индексов
+    if not df.index.is_unique:
+        df = df.reset_index(drop=True)
+    
     return df
 
 
