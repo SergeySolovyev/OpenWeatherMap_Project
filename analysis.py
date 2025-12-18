@@ -65,10 +65,15 @@ def add_rolling_stats(df: pd.DataFrame, window_days: int = 30) -> pd.DataFrame:
         rolling_std_list.extend(city_rolling_std)
     
     # Создаем новый DataFrame с результатами, избегая проблем с индексами
-    result_df = df.copy()
-    result_df = result_df.reset_index(drop=True)
-    result_df["rolling_mean"] = np.array(rolling_mean_list, dtype=float)
-    result_df["rolling_std"] = np.array(rolling_std_list, dtype=float)
+    # Используем pd.DataFrame.assign для безопасного создания колонок
+    result_df = df.copy().reset_index(drop=True)
+    
+    # Создаем Series с правильными индексами
+    rolling_mean_series = pd.Series(rolling_mean_list, index=result_df.index, dtype=float)
+    rolling_std_series = pd.Series(rolling_std_list, index=result_df.index, dtype=float)
+    
+    # Используем assign для безопасного добавления колонок
+    result_df = result_df.assign(rolling_mean=rolling_mean_series, rolling_std=rolling_std_series)
     
     return result_df
 
