@@ -42,33 +42,34 @@ def add_rolling_stats(df: pd.DataFrame, window_days: int = 30) -> pd.DataFrame:
     if not df.index.is_unique:
         df = df.reset_index(drop=True)
     
+    # Инициализируем колонки с NaN значениями
+    df["rolling_mean"] = np.nan
+    df["rolling_std"] = np.nan
+    
     # Вычисляем rolling статистики для каждого города отдельно
     # Это гарантирует правильное выравнивание индексов
-    rolling_mean_list = []
-    rolling_std_list = []
-    
     for city in df["city"].unique():
         city_mask = df["city"] == city
-        city_df = df[city_mask].copy().reset_index(drop=True)
+        city_indices = df[city_mask].index
+        
+        # Создаем отдельный DataFrame для города
+        city_df = df.loc[city_indices].copy().reset_index(drop=True)
         
         # Вычисляем rolling статистики для города
         city_rolling_mean = (
             city_df.rolling(window=window_days, on="timestamp")["temperature"]
             .mean()
+            .values
         )
         city_rolling_std = (
             city_df.rolling(window=window_days, on="timestamp")["temperature"]
             .std()
+            .values
         )
         
-        # Преобразуем в numpy массивы для гарантированного выравнивания
-        rolling_mean_list.extend(city_rolling_mean.values)
-        rolling_std_list.extend(city_rolling_std.values)
-    
-    # Присваиваем значения напрямую через массивы numpy
-    # Это гарантирует правильное выравнивание независимо от индексов
-    df["rolling_mean"] = np.array(rolling_mean_list)
-    df["rolling_std"] = np.array(rolling_std_list)
+        # Присваиваем значения напрямую по индексам
+        df.loc[city_indices, "rolling_mean"] = city_rolling_mean
+        df.loc[city_indices, "rolling_std"] = city_rolling_std
     
     return df
 
