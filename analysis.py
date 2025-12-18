@@ -33,30 +33,37 @@ def load_data(path: str) -> pd.DataFrame:
 
 def add_rolling_stats(df: pd.DataFrame, window_days: int = 30) -> pd.DataFrame:
     df = df.sort_values(["city", "timestamp"]).copy()
-    # Сохраняем исходный индекс для последующего выравнивания
-    original_index = df.index.copy()
+    # Сбрасываем индекс для избежания проблем с дублирующимися индексами
     df = df.reset_index(drop=True)
     
-    # Вычисляем rolling статистики
-    rolling_mean = (
-        df.groupby("city")
-        .rolling(window=window_days, on="timestamp")["temperature"]
-        .mean()
-        .reset_index(level=0, drop=True)
-    )
-    rolling_std = (
-        df.groupby("city")
-        .rolling(window=window_days, on="timestamp")["temperature"]
-        .std()
-        .reset_index(level=0, drop=True)
-    )
+    # Вычисляем rolling статистики для каждого города отдельно
+    # Это гарантирует правильное выравнивание индексов
+    rolling_mean_list = []
+    rolling_std_list = []
     
-    # Присваиваем значения через .values для избежания проблем с индексами
-    # Индексы должны совпадать, так как мы сбросили индекс перед rolling
-    df["rolling_mean"] = rolling_mean.values
-    df["rolling_std"] = rolling_std.values
+    for city in df["city"].unique():
+        city_mask = df["city"] == city
+        city_df = df[city_mask].copy()
+        
+        # Вычисляем rolling статистики для города
+        city_rolling_mean = (
+            city_df.rolling(window=window_days, on="timestamp")["temperature"]
+            .mean()
+            .values
+        )
+        city_rolling_std = (
+            city_df.rolling(window=window_days, on="timestamp")["temperature"]
+            .std()
+            .values
+        )
+        
+        rolling_mean_list.extend(city_rolling_mean)
+        rolling_std_list.extend(city_rolling_std)
     
-    # Восстанавливаем исходный индекс если нужно (но обычно не требуется)
+    # Присваиваем значения напрямую через массивы numpy
+    df["rolling_mean"] = rolling_mean_list
+    df["rolling_std"] = rolling_std_list
+    
     return df
 
 
